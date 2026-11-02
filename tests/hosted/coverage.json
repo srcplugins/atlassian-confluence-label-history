@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "features": [
+    {
+      "id": "LH-00",
+      "behavior": "The starter space settings page loads in the fixture space and answers the administrator's space access check (the administrator can read the space either way, so this doesn't prove asUser; restricted-page journeys do)",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "The marked fixture space (forge-test prepare); no writes",
+      "assertion": "An independent API read finds the space; the page shows the heading and 'Ready.' with no error flag, and 'Check space access' answers that the administrator can read the space",
+      "cleanup": "persistent-read-only",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    }
+  ]
+}
