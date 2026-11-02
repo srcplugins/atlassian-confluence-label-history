@@ -1,0 +1,23 @@
+modules:
+  confluence:spaceSettings:
+    - key: label-history
+      resource: main
+      render: native
+      resolver:
+        function: resolver
+      title: Label History for Confluence
+      route: label-history
+  function:
+    - key: resolver
+      handler: index.handler
+resources:
+  - key: main
+    path: src/app.tsx
+permissions:
+  scopes:
+    - read:space:confluence
+app:
+  id: ari:cloud:ecosystem::app/d4aa2b15-a667-4c59-8271-25fe91ae7f5b
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
