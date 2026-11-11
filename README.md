@@ -2,23 +2,54 @@
 
 [![Check](https://github.com/srcplugins/atlassian-confluence-label-history/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/srcplugins/atlassian-confluence-label-history/actions/workflows/check.yml?query=branch%3Amain)
 
-A starter Confluence space settings page that checks whether you can read the current space. Replace this description with the plugin's job once it is specified.
+**Label history for your Confluence pages.**
 
-## Usage
+See who added or removed labels on your Confluence pages, and when. Review the history and restore a label removed by mistake.
 
-Open **Space settings → Integrations → Label History for Confluence** in a space and click **Check space access**. The page names the space you can read, or explains why the check failed.
+[Website](https://srcplugins.com/plugins/atlassian/label-history-for-confluence/)
+
+## Features
+
+- **Track label changes.** Select **Label History** under a page's title to see its latest 100 changes, newest first, with who made each one and when.
+- **Restore removed labels.** Choose **Restore** next to a removal and confirm. The label is added back as you and recorded under your name. You need permission to edit the page.
+- **Ask Rovo.** Ask the read-only **Label History for Confluence** agent about up to 20 recent changes on a page or in a space. Space answers use the latest 500 recorded changes, filtered to pages you can view.
+
+History starts at installation, in every space, personal spaces included. Only page labels are recorded, excluding personal (`my:`) and team (`team:`) labels. Changes on pages whose view restriction excludes the app aren't recorded. No configuration is required.
+
+For installation, usage, limits and troubleshooting, see the [website documentation](https://srcplugins.com/plugins/atlassian/label-history-for-confluence/).
+
+## Changes to Confluence
+
+- **Installation:** adds **Label History** under each page's title and, where Rovo is available, the read-only **Label History for Confluence** agent.
+- **Restore:** adds one removed label back to a page as the current user.
+- **Uninstallation:** existing pages, labels and spaces stay unchanged.
+
+The app never removes labels or changes page content or spaces.
 
 ## Permissions
 
-| Scope | Why it is needed |
-|---|---|
-| `read:space:confluence` | Read the current space as you to confirm your access. |
+History reads and restores respect Confluence's user permissions. You can view history only for pages you can access and restore labels only on pages you can edit, excluding archived pages. Trashed and deleted pages show no history. Administrators cannot bypass page restrictions. Recording runs from Confluence's events, as the app.
 
-Requests run as you. Opening the settings page doesn't replace the server-side check. Guests and anonymous users are outside the starter's scope.
+| Scope | Purpose |
+| --- | --- |
+| `read:confluence-content.summary` | Receive label added, label removed and page moved events. |
+| `read:confluence-space.summary` | Receive label events with their space. |
+| `read:page:confluence` | Read page titles, check view and edit access, and check labels before restoring. |
+| `read:space:confluence` | Find an accessible space by key for Rovo. |
+| `storage:app` | Store recorded label changes. |
+| `write:confluence-content` | Restore removed labels and receive page deletion events to remove their history. |
 
 ## Data
 
-Read-only. The app reads the current space's ID, key and name. It stores nothing, sends nothing outside Atlassian and logs no content.
+Label History stores page and space IDs, the label's ID, name and prefix, whether it was added or removed, when and the actor's account ID in Atlassian Forge. Page titles are read as you when needed; page content, other labels, display names and email addresses aren't stored. Older changes are removed as new ones are recorded.
+
+Moved and archived pages keep their history. Trashed pages keep it hidden. Confluence's page deletion event removes the history; deleting a whole space may leave hidden records in storage.
+
+The app declares no external network access and does not log page content or labels. Forge retains app data for 28 days after uninstall, but reinstalling does not automatically restore it.
+
+**Privacy note:** Anyone who can view a page can see its recorded label history, including changes made before they had access.
+
+Rovo requests and responses are processed under [Atlassian's Rovo data policies](https://support.atlassian.com/rovo/docs/rovo-data-privacy-and-usage-guidelines/), potentially using third-party AI models.
 
 ## Support
 
@@ -26,4 +57,6 @@ For questions, bug reports, or feature requests, email **support@srcplugins.com*
 
 ## License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE.md). Third-party production dependencies are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+
+Third-party components and licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
