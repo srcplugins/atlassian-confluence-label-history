@@ -124,8 +124,10 @@ Production dependencies included in this app and its UI bundles.
 | @forge/auth | 1.0.0 | SEE LICENSE IN LICENSE.txt |
 | @forge/bridge | 7.0.0 | SEE LICENSE IN LICENSE.txt |
 | @forge/egress | 3.0.0 | SEE LICENSE IN LICENSE.txt |
+| @forge/events | 3.0.6 | SEE LICENSE IN LICENSE.txt |
 | @forge/i18n | 1.0.0 | SEE LICENSE IN LICENSE.txt |
 | @forge/i18n | 1.0.1 | SEE LICENSE IN LICENSE.txt |
+| @forge/kvs | 2.0.6 | SEE LICENSE IN LICENSE.txt |
 | @forge/manifest | 13.5.0 | SEE LICENSE IN LICENSE.txt |
 | @forge/manifest | 13.8.0 | SEE LICENSE IN LICENSE.txt |
 | @forge/react | 12.2.0 | SEE LICENSE IN LICENSE.txt |
@@ -220,7 +222,7 @@ Production dependencies included in this app and its UI bundles.
 | memoize-one | 6.0.0 | MIT |
 | mime-db | 1.52.0 | MIT |
 | mime-types | 2.1.35 | MIT |
-| minimatch | 11.0.3 | BlueOak-1.0.0 |
+| minimatch | 11.0.4 | BlueOak-1.0.0 |
 | minipass | 7.1.3 | BlueOak-1.0.0 |
 | ms | 2.1.3 | MIT |
 | nth-check | 2.1.1 | BSD-2-Clause |

@@ -6,6 +6,11 @@
 export const forge = ['node', 'config/forge.mjs'];
 /** The host product: doctor, prepare and install act on Confluence. */
 export const product = 'confluence';
+/**
+ * What the hosted runs change, so other apps' runs can share the site: this app's installation
+ * and the marked fixture space, which Page Copy History also uses (so those two take turns).
+ */
+export const leaseUses = ['app:label-history', 'confluence:fixture-space'];
 
 const step = (name, command, env = {}, more = {}) => ({ name, command, env, ...more });
 const prerequisite = (name, command) => step(name, command, {}, { prerequisite: true });

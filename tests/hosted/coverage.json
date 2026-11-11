@@ -2,12 +2,48 @@
   "schemaVersion": 1,
   "features": [
     {
-      "id": "LH-00",
-      "behavior": "The starter space settings page loads in the fixture space and answers the administrator's space access check (the administrator can read the space either way, so this doesn't prove asUser; restricted-page journeys do)",
+      "id": "LH-01",
+      "behavior": "A label added by the administrator and removed by the member is recorded with each person and shown newest first in the page's byline item, with no count line",
       "suite": "tests/hosted/label-history.features.spec.mjs",
-      "fixture": "The marked fixture space (forge-test prepare); no writes",
-      "assertion": "An independent API read finds the space; the page shows the heading and 'Ready.' with no error flag, and 'Check space access' answers that the administrator can read the space",
-      "cleanup": "persistent-read-only",
+      "fixture": "Journaled administrator page in the marked fixture space; a run-unique label added through REST as the administrator and removed as the member",
+      "assertion": "An independent read shows the label gone; the member's byline history holds exactly the removal by the member then the addition by the administrator, for the page with its title, and the table shows both rows without a 'since the app was installed' line",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-02",
+      "behavior": "A page's history shows only while Confluence lets the viewer see the page: after a restriction the member's history request for it is refused, while the administrator still sees it",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Two journaled administrator pages with a run-unique label; one later restricted to the administrator; the member's saved session",
+      "assertion": "The member first sees the history of both pages; after the restriction Confluence refuses the page to the member, a history request for the hidden page from the open page's byline answers the public refusal without the hidden title, and the administrator still sees its history",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-03",
+      "behavior": "A page moved to the trash after its changes were recorded shows its history to nobody, the administrator included",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Two journaled administrator pages; a run-unique label on one, which is then trashed through REST as the administrator (journaled, settled by a read); cleanup purges both",
+      "assertion": "The administrator first sees the change; after the trash Confluence's batch page read leaves the page out, and the administrator's history request for it from the open page's byline answers the public refusal, without the trashed title",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-04",
+      "behavior": "A member who can edit a page restores a label the administrator removed: Restore shows only on the label's newest change, the confirmed restore adds the label back as the member, and the history records it under the member's name",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Journaled administrator page in the marked fixture space; a run-unique label added and removed through REST as the administrator; the member's saved session",
+      "assertion": "The member's history says they can edit, shows one Restore, the restore answers the label, the open history shows the addition at once with no Restore left, an independent administrator read shows the label on the page, and the reopened history starts with the member's addition with no Restore left",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-05",
+      "behavior": "A member who can view but not edit a page sees its history without Restore, and Confluence refuses their label on it",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Journaled administrator page with a run-unique label added and removed as the administrator, then restricted so the member can view but only the administrator can edit",
+      "assertion": "The member's history shows both changes and says they can't edit, with no Restore button; the member's own REST label add is rejected and an administrator read shows the label still absent",
+      "cleanup": "journal-verified",
       "lowerLevelTests": ["tests/boundary.test.mjs"]
     }
   ]
