@@ -4,10 +4,9 @@ import { isRecord } from './shared/response.mjs';
 /** One recorded label change on a page: stored in Custom Entity Store entity `label-change`. */
 export interface LabelChange {
   pageId: string;
-  spaceId: string;
   labelId: string;
+  /** A global label's name: only global labels are recorded. */
   labelName: string;
-  labelPrefix: string;
   action: 'added' | 'removed';
   /** `eventCreatedDate` as fixed-width UTC, so it sorts as text. */
   at: string;
@@ -18,13 +17,14 @@ export interface LabelChange {
 // Confluence IDs are 64-bit, kept as decimal strings (REST v2 returns them so).
 export const isId = (value: unknown): value is string =>
   typeof value === 'string' && /^[1-9]\d{0,19}$/.test(value);
-const isAccountId = (value: unknown): value is string =>
-  typeof value === 'string' && /^[\w:-]{1,128}$/.test(value);
+// `unknown` stands for no account, and Atlassian's reporting API refuses it.
+export const isAccountId = (value: unknown): value is string =>
+  typeof value === 'string' && value !== 'unknown' && /^[\w:-]{1,128}$/.test(value);
 // Confluence stores label names in lower case, without spaces.
 export const isLabelName = (value: unknown): value is string =>
   typeof value === 'string' && /^[^\s]{1,255}$/.test(value);
 
-/** An event ID: a decimal string, or a safe integer (`content.space.id` arrives as a number). */
+/** An event ID: a decimal string, or a safe integer. */
 function eventId(value: unknown) {
   if (typeof value === 'number') return Number.isSafeInteger(value) ? String(value) : undefined;
   return isId(value) ? value : undefined;
@@ -36,10 +36,10 @@ function eventTime(value: unknown) {
   return Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString() : undefined;
 }
 
-const actions: Record<string, LabelChange['action']> = {
-  'avi:confluence:added:label': 'added',
-  'avi:confluence:removed:label': 'removed',
-};
+const actions = new Map<unknown, LabelChange['action']>([
+  ['avi:confluence:added:label', 'added'],
+  ['avi:confluence:removed:label', 'removed'],
+]);
 
 /** A page that isn't a live doc: version 1 records page labels only. */
 function plainPage(content: unknown) {
@@ -56,37 +56,23 @@ function plainPage(content: unknown) {
  * Reads only the fields it stores: never the context token, titles or the page's other labels.
  */
 export function labelChange(event: unknown): LabelChange | undefined {
-  if (!isRecord(event) || typeof event.eventType !== 'string') return undefined;
-  const action = actions[event.eventType];
+  if (!isRecord(event)) return undefined;
+  const action = actions.get(event.eventType);
   const { content, label } = event;
   if (!action || !plainPage(content) || !isRecord(label) || label.prefix !== 'global')
     return undefined;
-  const page = content as Record<string, unknown>;
-  const pageId = eventId(page.id);
-  const spaceId = isRecord(page.space) ? eventId(page.space.id) : undefined;
+  const pageId = eventId((content as Record<string, unknown>).id);
   const labelId = eventId(label.id);
   const at = eventTime(event.eventCreatedDate);
-  if (!pageId || !spaceId || !labelId || !at || !isLabelName(label.name)) return undefined;
+  if (!pageId || !labelId || !at || !isLabelName(label.name)) return undefined;
   return {
     pageId,
-    spaceId,
     labelId,
     labelName: label.name,
-    labelPrefix: 'global',
     action,
     at,
     ...(isAccountId(event.atlassianId) ? { actor: event.atlassianId } : {}),
   };
-}
-
-/** The page and its new space from a page-moved event, or undefined. */
-export function pageMove(event: unknown) {
-  if (!isRecord(event) || event.eventType !== 'avi:confluence:moved:page') return undefined;
-  if (!plainPage(event.content)) return undefined;
-  const page = event.content as Record<string, unknown>;
-  const pageId = eventId(page.id);
-  const spaceId = isRecord(page.space) ? eventId(page.space.id) : undefined;
-  return pageId && spaceId ? { pageId, spaceId } : undefined;
 }
 
 /**
@@ -96,6 +82,15 @@ export function pageMove(event: unknown) {
 export function pageDeletion(event: unknown) {
   if (!isRecord(event) || event.eventType !== 'avi:confluence:deleted:page') return undefined;
   return isRecord(event.content) ? eventId(event.content.id) : undefined;
+}
+
+/**
+ * An account whose ID the app stores, reported to Atlassian each week (entity `account`). `since`
+ * is when the app first stored it: the age of its copy of the personal data.
+ */
+export interface Account {
+  accountId: string;
+  since: string;
 }
 
 /** A repeated delivery of the same change writes the same key, so it overwrites itself. */
