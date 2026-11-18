@@ -3,10 +3,10 @@
   "features": [
     {
       "id": "LH-01",
-      "behavior": "A label added by the administrator and removed by the member is recorded with each person and shown newest first in the page's byline item, with no count line",
+      "behavior": "A label added by the administrator and removed by the member is recorded with each person and shown newest first in the page's byline item",
       "suite": "tests/hosted/label-history.features.spec.mjs",
       "fixture": "Journaled administrator page in the marked fixture space; a run-unique label added through REST as the administrator and removed as the member",
-      "assertion": "An independent read shows the label gone; the member's byline history holds exactly the removal by the member then the addition by the administrator, for the page with its title, and the table shows both rows without a 'since the app was installed' line",
+      "assertion": "An independent read shows the label gone; the member's byline history holds exactly the removal by the member then the addition by the administrator, for the page with its title, and the table shows both rows",
       "cleanup": "journal-verified",
       "lowerLevelTests": ["tests/boundary.test.mjs"]
     },
@@ -15,7 +15,7 @@
       "behavior": "A page's history shows only while Confluence lets the viewer see the page: after a restriction the member's history request for it is refused, while the administrator still sees it",
       "suite": "tests/hosted/label-history.features.spec.mjs",
       "fixture": "Two journaled administrator pages with a run-unique label; one later restricted to the administrator; the member's saved session",
-      "assertion": "The member first sees the history of both pages; after the restriction Confluence refuses the page to the member, a history request for the hidden page from the open page's byline answers the public refusal without the hidden title, and the administrator still sees its history",
+      "assertion": "The member first sees the history of both pages; after the restriction Confluence refuses the page to the member, a history request for the hidden page from the open page's byline answers the public refusal, which the popup shows with Try again and no table, and the administrator still sees its history",
       "cleanup": "journal-verified",
       "lowerLevelTests": ["tests/boundary.test.mjs"]
     },
@@ -24,7 +24,7 @@
       "behavior": "A page moved to the trash after its changes were recorded shows its history to nobody, the administrator included",
       "suite": "tests/hosted/label-history.features.spec.mjs",
       "fixture": "Two journaled administrator pages; a run-unique label on one, which is then trashed through REST as the administrator (journaled, settled by a read); cleanup purges both",
-      "assertion": "The administrator first sees the change; after the trash Confluence's batch page read leaves the page out, and the administrator's history request for it from the open page's byline answers the public refusal, without the trashed title",
+      "assertion": "The administrator first sees the change; after the trash Confluence's batch page read leaves the page out, and the administrator's history request for it from the open page's byline answers the public refusal, which the popup shows with Try again and no table",
       "cleanup": "journal-verified",
       "lowerLevelTests": ["tests/boundary.test.mjs"]
     },
@@ -44,6 +44,40 @@
       "fixture": "Journaled administrator page with a run-unique label added and removed as the administrator, then restricted so the member can view but only the administrator can edit",
       "assertion": "The member's history shows both changes and says they can't edit, with no Restore button; the member's own REST label add is rejected and an administrator read shows the label still absent",
       "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-07",
+      "behavior": "Discarding a published page's unpublished draft, which shares the page's ID, keeps the page's history",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Journaled administrator page with a run-unique label added as the administrator; an unpublished edit typed in the administrator's editor, then discarded with Revert to last published version",
+      "assertion": "Confluence's draft holds the edit, then loses it, and the page stays current without it; after a second label is added, the history shows both additions, newest first",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    },
+    {
+      "id": "LH-08",
+      "behavior": "In the administrator's personal space, a page's history shows to the member while they can view the page, and is refused to them once it is restricted, while the administrator still sees it",
+      "suite": "tests/hosted/label-history.features.spec.mjs",
+      "fixture": "Two journaled administrator pages in the administrator's own personal space (verified as the API account's personal space, created by it; Confluence's own, unmarked, so only the run's marked pages are written there); a run-unique label added as the administrator; one page then restricted to the administrator",
+      "assertion": "The member first sees the history of both pages; after the restriction Confluence refuses the page to the member, a history request for it from the open page's byline answers the public refusal, which the popup shows with Try again and no table, and the administrator still sees its history",
+      "cleanup": "journal-verified",
+      "lowerLevelTests": ["tests/boundary.test.mjs"]
+    }
+  ],
+  "manualJourneys": [],
+  "scriptedJourneys": [
+    {
+      "id": "LH-06",
+      "method": "runner",
+      "unattended": true,
+      "script": "tests/hosted/verify-rovo.mjs",
+      "optIn": "LH_ROVO_TESTS",
+      "command": "LH_ROVO_TESTS=1 node tests/hosted/verify-rovo.mjs run (the full and release suites of forge-test.mjs)",
+      "fixture": "Two journaled administrator pages, each with a run-unique label added as the administrator; the second then restricted to the administrator",
+      "assertion": "The member's Label History agent answer for the first page quotes its label; for the restricted page it reports it unavailable without its label or title; independent reads show both labels unchanged",
+      "cleanup": "journal-verified; node tests/hosted/verify-rovo.mjs cleanup <run>",
+      "version": "Unattended in the full and release suites",
       "lowerLevelTests": ["tests/boundary.test.mjs"]
     }
   ]

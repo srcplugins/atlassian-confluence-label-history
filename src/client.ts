@@ -64,11 +64,17 @@ export function readHistory(response: unknown) {
   };
 }
 
-/** The label a restore added back. */
+/** The label a restore added back, and whether Confluence confirmed it. */
 export function readRestore(response: unknown) {
   const value = unwrapResponse(response);
-  if (!isRecord(value) || !isText(value.label, 255) || !value.label) throw invalid();
-  return { label: value.label };
+  if (
+    !isRecord(value) ||
+    !isText(value.label, 255) ||
+    !value.label ||
+    typeof value.confirmed !== 'boolean'
+  )
+    throw invalid();
+  return { label: value.label, confirmed: value.confirmed };
 }
 
 /**

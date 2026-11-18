@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ForgeReconciler, {
   Button,
   ButtonGroup,
@@ -32,6 +32,7 @@ function setConfluenceDates(locale: unknown, timeZone: unknown) {
 }
 const when = (at: string) => dateFormat.format(new Date(at));
 
+// A refusal or a busy answer carries its own guidance; anything else is a lost connection.
 const failure = (error: unknown) =>
   error instanceof PublicResponseError ? error.message : 'Connection failed. Try again.';
 
@@ -43,59 +44,77 @@ const actionLozenge = (action: Change['action']) =>
   );
 const actor = (id: string | null) => (id ? <User accountId={id} /> : <Text>Unknown</Text>);
 
-function Failure({ message, retry }: { message: string; retry?: () => void }) {
+/** A failed read, with Try again for every cause: access and busy sites change, too. */
+function Failure({ message, retry }: { message: string; retry: () => void }) {
   return (
     <SectionMessage appearance="error" title="Label history couldn't load">
       <Text>{message}</Text>
-      {retry ? <Button onClick={retry}>Try again</Button> : null}
+      <Button autoFocus onClick={retry}>
+        Try again
+      </Button>
     </SectionMessage>
   );
 }
 
 type Restore =
-  | { label: string; step: 'confirm' | 'sending' }
-  | { label: string; step: 'done' }
+  | { label: string; step: 'confirm' | 'sending' | 'done' | 'unconfirmed' }
   | { label: string; step: 'failed'; message: string };
 
 /**
- * The restore's confirmation and outcome. The confirmation names the label and the page, and its
- * button keeps focus while the label is added, once.
+ * The restore's confirmation and outcome. The confirmation names the label, and its button keeps
+ * focus while the label is added, once; each outcome's Close button takes focus.
  */
 function RestoreMessage({
   restore,
-  title,
   confirm,
   close,
 }: {
   restore: Restore;
-  title: string;
   confirm: () => void;
   close: () => void;
 }) {
+  const closeButton = (
+    <Button autoFocus onClick={close}>
+      Close
+    </Button>
+  );
   if (restore.step === 'done')
     return (
-      <SectionMessage appearance="success" title={`"${restore.label}" is back on this page`}>
-        <Text>It's at the top of the history, under your name.</Text>
-        <Button onClick={close}>Close</Button>
+      <SectionMessage appearance="success" title={`Label "${restore.label}" restored`}>
+        {closeButton}
+      </SectionMessage>
+    );
+  if (restore.step === 'unconfirmed')
+    return (
+      <SectionMessage
+        appearance="warning"
+        title={`Restoring label "${restore.label}" wasn't confirmed`}
+      >
+        <Text>
+          Confluence didn&apos;t confirm the change. Reopen the history to see whether the label was
+          restored.
+        </Text>
+        {closeButton}
       </SectionMessage>
     );
   if (restore.step === 'failed')
     return (
-      <SectionMessage appearance="error" title={`"${restore.label}" wasn't restored`}>
+      <SectionMessage appearance="error" title={`Label "${restore.label}" wasn't restored`}>
         <Text>{restore.message}</Text>
-        <Button onClick={close}>Close</Button>
+        {closeButton}
       </SectionMessage>
     );
   return (
-    <SectionMessage appearance="information" title={`Add "${restore.label}" back to ${title}?`}>
-      <Text>Everyone who can view the page will see the label again.</Text>
+    <SectionMessage appearance="information" title={`Restore label "${restore.label}"?`}>
+      <Text>The label will be visible to anyone with access to this page.</Text>
       <ButtonGroup label="Restore">
         <LoadingButton
           appearance="primary"
+          autoFocus
           isLoading={restore.step === 'sending'}
           onClick={confirm}
         >
-          Add label back
+          Restore label
         </LoadingButton>
         <Button isDisabled={restore.step === 'sending'} onClick={close}>
           Cancel
@@ -110,6 +129,21 @@ function RestoreMessage({
 const recheckMs = 2000;
 const rechecks = 10;
 
+/** A label whose restore is awaited, and the time of its newest change when the restore was sent. */
+interface Awaited {
+  label: string;
+  after: number;
+}
+
+/** The label's newest recorded change. */
+const newest = (changes: Change[], label: string) => changes.find((c) => c.label === label);
+
+/** The label's newest change, if it is newer than when the restore was sent. */
+const since = (changes: Change[], { label, after }: Awaited) => {
+  const change = newest(changes, label);
+  return change && Date.parse(change.at) > after ? change : undefined;
+};
+
 /** One page's label changes, newest first, in the popup under the page's title. */
 function PageHistory({ pageId, accountId }: { pageId: string; accountId: string | null }) {
   const [state, setState] = useState<{
@@ -118,42 +152,62 @@ function PageHistory({ pageId, accountId }: { pageId: string; accountId: string 
   }>({});
   const [round, setRound] = useState(0);
   const [restore, setRestore] = useState<Restore>();
-  // Restores made in this popup, shown at once until their recorded change arrives.
+  // Restores Confluence confirmed in this popup, shown at once until a newer change to their label
+  // is recorded.
   const [pending, setPending] = useState<Change[]>([]);
+  // Restores awaited in the history, confirmed or not. A reread's answer is matched against the list
+  // as it is when the answer arrives, so `awaited` holds it alongside the state that schedules rereads.
+  const [awaiting, setAwaiting] = useState<Awaited[]>([]);
+  const awaited = useRef<Awaited[]>([]);
+  const updateAwaiting = (update: (list: Awaited[]) => Awaited[]) => {
+    awaited.current = update(awaited.current);
+    setAwaiting(awaited.current);
+  };
   const [recheck, setRecheck] = useState(0);
+  // Only the latest history read may set the result, and one restore is sent at a time: a loading
+  // button still accepts clicks.
+  const latest = useRef(0);
+  const sending = useRef(false);
   useEffect(() => {
-    let current = true;
+    const n = ++latest.current;
     setState({});
     invoke<unknown>('history', { pageId })
-      .then((response) => current && setState({ value: readHistory(response) }))
-      .catch((error: unknown) => current && setState({ error: failure(error) }));
-    return () => {
-      current = false;
-    };
+      .then((response) => n === latest.current && setState({ value: readHistory(response) }))
+      .catch((error: unknown) => n === latest.current && setState({ error: failure(error) }));
   }, [pageId, round]);
-  // Rereads quietly, keeping the table, and drops each pending row once its label's newest
-  // recorded change is an addition.
+  // While the table shows, rereads quietly until each awaited label has a newer recorded change: then
+  // its pending row goes, and an unconfirmed restore whose label was added back shows as restored.
+  // Each reread counts, whatever its outcome: rereads stop after `rechecks`. A lost call keeps the
+  // table; a failure the app reports replaces it with its message and Try again.
+  const shown = Boolean(state.value);
   useEffect(() => {
-    if (!pending.length || recheck >= rechecks) return;
-    let current = true;
+    if (!shown || !awaiting.length || recheck >= rechecks) return;
     const timer = setTimeout(() => {
+      const n = ++latest.current;
       invoke<unknown>('history', { pageId })
         .then((response) => {
-          if (!current) return;
+          if (n !== latest.current) return;
           const value = readHistory(response);
+          const done = awaited.current.filter((a) => since(value.changes, a));
+          const added = (label: string) =>
+            done.some((a) => a.label === label && since(value.changes, a)?.action === 'added');
           setState({ value });
-          setPending((list) =>
-            list.filter((p) => value.changes.find((c) => c.label === p.label)?.action !== 'added'),
+          setPending((list) => list.filter((p) => !done.some((a) => a.label === p.label)));
+          setRestore((r) =>
+            r?.step === 'unconfirmed' && added(r.label) ? { label: r.label, step: 'done' } : r,
           );
+          updateAwaiting((list) => list.filter((a) => !done.includes(a)));
         })
-        .catch(() => undefined)
-        .finally(() => current && setRecheck((n) => n + 1));
+        .catch((error: unknown) => {
+          if (n !== latest.current || !(error instanceof PublicResponseError)) return;
+          updateAwaiting(() => []);
+          setPending([]);
+          setState({ error: failure(error) });
+        })
+        .finally(() => n === latest.current && setRecheck((k) => k + 1));
     }, recheckMs);
-    return () => {
-      current = false;
-      clearTimeout(timer);
-    };
-  }, [pageId, pending, recheck]);
+    return () => clearTimeout(timer);
+  }, [pageId, shown, awaiting, recheck]);
   if (state.error) return <Failure message={state.error} retry={() => setRound((r) => r + 1)} />;
   if (!state.value) return <Spinner label="Loading label history" />;
   const { page, older, canEdit } = state.value;
@@ -161,21 +215,41 @@ function PageHistory({ pageId, accountId }: { pageId: string; accountId: string 
   if (!changes.length) return <Text>No label changes recorded for this page yet.</Text>;
   const undoable = restorable(changes);
   const busy = restore?.step === 'sending';
+  const recorded = state.value.changes;
+  const watch = (label: string) => {
+    const change = newest(recorded, label);
+    const after = change ? Date.parse(change.at) : 0;
+    updateAwaiting((list) => [...list.filter((a) => a.label !== label), { label, after }]);
+    setRecheck(0);
+  };
   const confirm = () => {
-    if (!restore || restore.step !== 'confirm') return;
+    if (sending.current || restore?.step !== 'confirm') return;
+    sending.current = true;
     const { label } = restore;
     setRestore({ label, step: 'sending' });
     invoke<unknown>('restore', { pageId: page.id, label })
       .then((response) => {
-        readRestore(response);
-        setPending((list) => [
-          { at: new Date().toISOString(), action: 'added', label, actor: accountId },
-          ...list,
-        ]);
-        setRecheck(0);
-        setRestore({ label, step: 'done' });
+        const { confirmed } = readRestore(response);
+        if (confirmed)
+          setPending((list) => [
+            { at: new Date().toISOString(), action: 'added', label, actor: accountId },
+            ...list,
+          ]);
+        watch(label);
+        setRestore({ label, step: confirmed ? 'done' : 'unconfirmed' });
       })
-      .catch((error: unknown) => setRestore({ label, step: 'failed', message: failure(error) }));
+      .catch((error: unknown) => {
+        // Confluence refused: nothing changed. Otherwise the label may have been added.
+        if (error instanceof PublicResponseError)
+          setRestore({ label, step: 'failed', message: error.message });
+        else {
+          watch(label);
+          setRestore({ label, step: 'unconfirmed' });
+        }
+      })
+      .finally(() => {
+        sending.current = false;
+      });
   };
   const restoreCell = (c: Change, i: number) =>
     undoable[i] ? (
@@ -183,16 +257,14 @@ function PageHistory({ pageId, accountId }: { pageId: string; accountId: string 
         Restore
       </Button>
     ) : null;
+  // A restore whose change Confluence hasn't sent by the last reread says so instead of a time.
+  const whenCell = (c: Change, i: number) =>
+    i < pending.length && recheck >= rechecks ? 'Not recorded yet' : when(c.at);
   return (
     <Stack space="space.200">
       {older ? <Text>The latest 100 changes. Older ones aren't kept.</Text> : null}
       {restore ? (
-        <RestoreMessage
-          restore={restore}
-          title={page.title}
-          confirm={confirm}
-          close={() => setRestore(undefined)}
-        />
+        <RestoreMessage restore={restore} confirm={confirm} close={() => setRestore(undefined)} />
       ) : null}
       <DynamicTable
         caption="Label changes"
@@ -202,13 +274,13 @@ function PageHistory({ pageId, accountId }: { pageId: string; accountId: string 
             { key: 'change', content: 'Change' },
             { key: 'label', content: 'Label' },
             { key: 'actor', content: 'Changed by' },
-            ...(canEdit ? [{ key: 'restore', content: 'Restore' }] : []),
+            ...(canEdit ? [{ key: 'restore', content: 'Action' }] : []),
           ],
         }}
         rows={changes.map((c, i) => ({
           key: `${i}`,
           cells: [
-            { key: 'when', content: when(c.at) },
+            { key: 'when', content: whenCell(c, i) },
             { key: 'change', content: actionLozenge(c.action) },
             { key: 'label', content: c.label },
             { key: 'actor', content: actor(c.actor) },
@@ -232,7 +304,8 @@ function App() {
     isRecord(context.extension) && isRecord(context.extension.content)
       ? context.extension.content
       : {};
-  if (content.type !== 'page' || typeof content.id !== 'string')
+  // A live doc is a page with a subtype; its labels aren't recorded.
+  if (content.type !== 'page' || content.subtype || typeof content.id !== 'string')
     return <Text>Label History records page labels only.</Text>;
   return (
     <PageHistory

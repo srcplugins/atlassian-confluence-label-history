@@ -91,7 +91,7 @@ export async function restoreLabel(page, label) {
     .first()
     .getByRole('button', { name: 'Restore' })
     .click();
-  const confirm = page.getByRole('button', { name: 'Add label back' });
+  const confirm = page.getByRole('button', { name: 'Restore label' });
   return answer(page, 'restore', () => confirm.click());
 }
 
