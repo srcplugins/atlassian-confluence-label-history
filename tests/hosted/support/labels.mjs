@@ -28,7 +28,7 @@ async function accountId(call) {
 /**
  * The caller's own personal space, verified read-only: Confluence reports it as the caller's
  * personal space and as created by the caller. The framework's `personalSpace` does the same;
- * this copy goes once the plugin's framework pin includes it (label-history#xp73).
+ * this copy goes once the plugin's framework pin includes it.
  */
 async function personalSpace(call) {
   const me = await call('/wiki/rest/api/user/current?expand=personalSpace');
@@ -198,8 +198,10 @@ export async function labelRun({ admin, member, recover, space: where = 'fixture
         .click({ timeout: 60_000 });
       await page.keyboard.press('End');
       await page.keyboard.type(` ${edit}`);
+      // The editor saves the draft on its own schedule; with the site under load that took over a
+      // minute (2026-11-18). The edit is typed once and never again.
       await expect
-        .poll(async () => (await draft())?.body?.storage?.value ?? '', { timeout: 60_000 })
+        .poll(async () => (await draft())?.body?.storage?.value ?? '', { timeout: 180_000 })
         .toContain(edit);
       run.check(`edit ${pageId} unpublished`, 'draft saved');
       run.check(`discard draft ${pageId}`, 'sending');

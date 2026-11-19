@@ -2,6 +2,10 @@
 
 User-facing changes in each released version of Label History for Confluence.
 
+## 1.0.1 (unreleased)
+
+- Documentation: the README says a page's history is removed on deletion only while the app is licensed, how long recorded account IDs are kept, why the space scope is needed, and that the app's logs hold no identifiers.
+
 ## 1.0.0
 
 - Review a page's latest 100 label changes, with who made each change and when.
