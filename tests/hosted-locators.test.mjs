@@ -15,7 +15,6 @@ const app = files('src')
   .map((path) => readFileSync(path, 'utf8'))
   .join('\n');
 const notAppText = new Map([
-  ['/^Label History/', 'the byline item, titled by manifest.yml'],
   ["'Synthetic data only.'", "the fixture page's body, written by the framework's pageAdapter"],
   ["'More actions'", "Confluence's page menu"],
   ["'Revert to previous version'", "Confluence's editor menu"],

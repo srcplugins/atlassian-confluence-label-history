@@ -183,6 +183,8 @@ test("LH-07 discarding a page's unpublished draft keeps the page's history", asy
   page,
   labels,
 }) => {
+  // Room for the draft's slow save (support/labels.mjs) on top of the two history waits.
+  test.setTimeout(480_000);
   const { admin } = labels.accounts;
   const target = await labels.createPage('Draft discarded');
   const first = labels.label();
@@ -207,7 +209,7 @@ test("LH-07 discarding a page's unpublished draft keeps the page's history", asy
 
 test.describe('in a personal space', () => {
   // Confluence creates the personal space unmarked; only the run's marked pages go there (owner,
-  // 2026-11-12, label-history#xp73).
+  // 2026-11-12).
   test.use({ labelSpace: 'personal' });
 
   test("LH-08 in the administrator's personal space, a page's history shows only to those who can view the page", async ({

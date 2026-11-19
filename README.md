@@ -33,7 +33,7 @@ History reads and restores respect Confluence's user permissions. You can view h
 | Scope | Purpose |
 | --- | --- |
 | `read:confluence-content.summary` | Receive label added and label removed events. |
-| `read:confluence-space.summary` | Receive label events with their space. |
+| `read:confluence-space.summary` | Required by Confluence to deliver label events; the app doesn't read or store the space. |
 | `read:page:confluence` | Read page titles, check view and edit access, and check labels before restoring. |
 | `report:personal-data` | Report the stored account IDs to Atlassian each week, as its user privacy rules require, and learn which accounts were closed. |
 | `storage:app` | Store recorded label changes. |
@@ -41,11 +41,11 @@ History reads and restores respect Confluence's user permissions. You can view h
 
 ## Data
 
-Label History stores page IDs, the label's ID and name, whether it was added or removed, when and the actor's account ID in Atlassian Forge, and for each account ID when the app first stored it. Page titles are read as you when needed; page content, other labels, display names and email addresses aren't stored. History has no time limit: a page's older changes are removed only as new ones are recorded. Each week the app reports the account IDs it stores to Atlassian; when an account is closed, its ID is removed and its changes show an unknown actor.
+Label History stores page IDs, the label's ID and name, whether it was added or removed, when and the actor's account ID in Atlassian Forge, and for each account ID when the app first stored it. Page titles are read as you when needed; page content, other labels, display names and email addresses aren't stored. History has no time limit: a page's older changes are removed only as new ones are recorded. Each week the app reports the account IDs it stores to Atlassian. Each recorded account ID is kept, and reported weekly, until Atlassian reports the account closed or the app is uninstalled, even after the changes naming it are removed. Within about a week of Atlassian reporting a closure, its ID is removed and its changes show an unknown actor.
 
-Moved and archived pages keep their history. Trashed pages keep it hidden. Confluence's page deletion event removes the history; deleting a whole space may leave hidden records in storage.
+Moved and archived pages keep their history. Trashed pages keep it hidden. Confluence's page deletion event removes the history while the app is licensed; pages purged while it isn't, and whole deleted spaces, may leave hidden records until uninstall.
 
-The app declares no external network access and does not log page content or labels. Forge retains app data for 28 days after uninstall, but reinstalling does not automatically restore it.
+The app declares no external network access, and its logs hold no page content, labels or identifiers. Forge retains app data for 28 days after uninstall, but reinstalling does not automatically restore it.
 
 **Privacy note:** Anyone who can view a page can see its recorded label history, including changes made before they had access.
 

@@ -51,9 +51,10 @@ async function openByline(page, site, space) {
   // Forge upgrades the installation shortly after the deploy; reload until the byline answers.
   await expect(async () => {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
+    // Production's item, never the development installation's "Label History (Development)" on
+    // the same page.
     await page
-      .getByRole('button', { name: /^Label History/ })
-      .first()
+      .getByRole('button', { name: 'Label History', exact: true })
       .click({ timeout: 45000 });
     await expect(table.or(none).or(refused).first()).toBeVisible({ timeout: 30000 });
   }).toPass({ timeout: 300000, intervals: [15000] });

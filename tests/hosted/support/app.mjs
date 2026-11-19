@@ -77,7 +77,13 @@ export async function bylineHistory(page, spaceKey, pageId) {
   await page.goto(`${confluenceTarget().site}${pagePath(spaceKey, pageId)}`, {
     waitUntil: 'domcontentloaded',
   });
-  const item = page.getByRole('button', { name: /^Label History/ }).first();
+  // This installation's item only: Confluence shows one per installed environment, and names every
+  // one but production's with its environment ("Label History (Development)").
+  const name =
+    installation(app).environment === 'production'
+      ? 'Label History'
+      : 'Label History (Development)';
+  const item = page.getByRole('button', { name, exact: true });
   return answer(page, 'history', () => item.click({ timeout: 45_000 }));
 }
 
